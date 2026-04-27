@@ -1,31 +1,11 @@
 import api from './api'
 
 export const dashboardService = {
-  getSummary() {
-    return api.get('/dashboard/summary')
-  },
-
-  getCriticalItems() {
-    return api.get('/dashboard/critical-items')
-  },
-
-  getUpcomingDeadlines() {
-    return api.get('/dashboard/upcoming-deadlines')
-  },
-
-  getRecentDecisions() {
-    return api.get('/dashboard/recent-decisions')
-  },
-
-  getPendingDirection() {
-    return api.get('/dashboard/pending-direction')
-  },
-
-  getDelayedActions() {
-    return api.get('/dashboard/delayed-actions')
-  },
-
-  getManagementSummary() {
-    return api.get('/dashboard/management-summary')
-  },
+  getSummary(year)           { return api.get('/dashboard/summary',            { params: { year } }) },
+  getCriticalItems(year)     { return api.get('/dashboard/critical-items',     { params: { year } }) },
+  getUpcomingDeadlines(year) { return api.get('/dashboard/upcoming-deadlines', { params: { year } }) },
+  getRecentDecisions(year)   { return api.get('/dashboard/recent-decisions',   { params: { year } }) },
+  getPendingDirection()      { return api.get('/dashboard/pending-direction') },
+  getDelayedActions(year)    { return api.get('/dashboard/delayed-actions',    { params: { year } }) },
+  getManagementSummary(year) { return api.get('/dashboard/management-summary', { params: { year } }) },
 }

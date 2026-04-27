@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { dashboardService } from '@/services/dashboardService'
 import { checklistService } from '@/services/checklistService'
@@ -42,17 +42,26 @@ const recentDecisions = ref([])
 const delayedActions = ref([])
 const managementSummary = ref(null)
 
-const selectedWeek = ref('17/2026')
+const currentYear = new Date().getFullYear()
+const selectedYear = ref(currentYear)
+
+// Lista de anos disponíveis: do ano atual até 2020
+const availableYears = computed(() => {
+  const years = []
+  for (let y = currentYear; y >= 2020; y--) years.push(y)
+  return years
+})
 
 async function fetchAll() {
   loading.value = true
+  const year = selectedYear.value
   try {
     const [s, c, u, d, da] = await Promise.allSettled([
-      dashboardService.getSummary(),
-      dashboardService.getCriticalItems(),
-      dashboardService.getUpcomingDeadlines(),
-      dashboardService.getRecentDecisions(),
-      dashboardService.getDelayedActions(),
+      dashboardService.getSummary(year),
+      dashboardService.getCriticalItems(year),
+      dashboardService.getUpcomingDeadlines(year),
+      dashboardService.getRecentDecisions(year),
+      dashboardService.getDelayedActions(year),
     ])
     summary.value = s.status === 'fulfilled' ? (s.value?.data ?? s.value) : null
     criticalItems.value = c.status === 'fulfilled' ? (c.value?.data ?? c.value ?? []) : []
@@ -60,9 +69,8 @@ async function fetchAll() {
     recentDecisions.value = d.status === 'fulfilled' ? (d.value?.data ?? d.value ?? []) : []
     delayedActions.value = da.status === 'fulfilled' ? (da.value?.data ?? da.value ?? []) : []
 
-    // management summary — optional endpoint, fallback silently
     try {
-      const ms = await dashboardService.getManagementSummary()
+      const ms = await dashboardService.getManagementSummary(year)
       managementSummary.value = ms?.data ?? ms ?? null
     } catch {
       managementSummary.value = null
@@ -72,6 +80,7 @@ async function fetchAll() {
   }
 }
 
+watch(selectedYear, fetchAll)
 onMounted(fetchAll)
 
 // ── Cards principais ──────────────────────────────────────
@@ -110,17 +119,14 @@ const fastTrackCount = computed(() => summary.value?.fastTrack ?? 0)
       <div class="db-topbar-left">
         <div>
           <h1 class="db-topbar-title">Dashboard do Comitê</h1>
-          <p class="db-topbar-sub">Visão executiva semanal · Comitê de Risco da Zucchetti – BU POS</p>
+          <p class="db-topbar-sub">Comitê de Risco da Zucchetti – BU POS · Ano {{ selectedYear }}</p>
         </div>
       </div>
       <div class="db-topbar-actions">
-        <div class="db-week-selector">
-          <span class="db-week-label">Semana</span>
-          <select v-model="selectedWeek" class="db-week-select">
-            <option>17/2026</option>
-            <option>16/2026</option>
-            <option>15/2026</option>
-            <option>14/2026</option>
+        <div class="db-year-selector">
+          <span class="db-week-label">Ano</span>
+          <select v-model="selectedYear" class="db-week-select">
+            <option v-for="y in availableYears" :key="y" :value="y">{{ y }}</option>
           </select>
         </div>
         <button class="btn" @click="fetchAll" :disabled="loading">
@@ -310,7 +316,7 @@ const fastTrackCount = computed(() => summary.value?.fastTrack ?? 0)
   gap: 0.5rem;
   flex-wrap: wrap;
 }
-.db-week-selector {
+.db-year-selector {
   display: flex;
   align-items: center;
   gap: 0.4rem;

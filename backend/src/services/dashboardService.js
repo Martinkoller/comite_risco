@@ -2,23 +2,32 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+function yearRange(year) {
+  const y = Number(year);
+  return {
+    gte: new Date(`${y}-01-01T00:00:00.000Z`),
+    lt:  new Date(`${y + 1}-01-01T00:00:00.000Z`),
+  };
+}
+
 class DashboardService {
   /**
    * Get dashboard summary with all metrics
    */
-  async getSummary() {
+  async getSummary(year) {
     const now = new Date();
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const yr = yearRange(year);
+    const yearFilter = { dateIdentified: yr };
 
     // Total items
-    const totalItems = await prisma.riskItem.count();
+    const totalItems = await prisma.riskItem.count({ where: yearFilter });
 
     // Items by status
     const itemsByStatus = await prisma.riskItem.groupBy({
       by: ['monitoringStatus'],
-      _count: {
-        id: true,
-      },
+      where: yearFilter,
+      _count: { id: true },
     });
 
     const statusCounts = itemsByStatus.reduce((acc, item) => {
@@ -29,9 +38,8 @@ class DashboardService {
     // Items by severity (from committee decisions)
     const itemsBySeverity = await prisma.committeeDecision.groupBy({
       by: ['finalSeverityId'],
-      _count: {
-        id: true,
-      },
+      where: { meetingDate: yr },
+      _count: { id: true },
     });
 
     const severityCounts = {};
@@ -47,16 +55,16 @@ class DashboardService {
     // Fast track items
     const fastTrackItems = await prisma.riskItem.count({
       where: {
+        ...yearFilter,
         isFastTrack: true,
-        monitoringStatus: {
-          notIn: ['Concluído', 'Cancelado', 'Sem ação'],
-        },
+        monitoringStatus: { notIn: ['Concluído', 'Cancelado', 'Sem ação'] },
       },
     });
 
     // Items waiting for direction
     const waitingForDirection = await prisma.committeeDecision.count({
       where: {
+        meetingDate: yr,
         goesToDirection: true,
         directionApproved: 'Pendente',
       },
@@ -65,60 +73,43 @@ class DashboardService {
     // Action plans in progress
     const actionPlansInProgress = await prisma.actionPlan.count({
       where: {
-        actionStatus: {
-          name: 'Em andamento',
-        },
+        riskItem: yearFilter,
+        actionStatus: { name: 'Em andamento' },
       },
     });
 
     // Overdue action plans
     const overdueActionPlans = await prisma.actionPlan.count({
       where: {
-        deadline: {
-          lt: now,
-        },
-        actionStatus: {
-          name: {
-            notIn: ['Concluído', 'Cancelado'],
-          },
-        },
+        riskItem: yearFilter,
+        deadline: { lt: now },
+        actionStatus: { name: { notIn: ['Concluído', 'Cancelado'] } },
       },
     });
 
     // Action plans due in next 7 days
     const actionPlansDueSoon = await prisma.actionPlan.count({
       where: {
-        deadline: {
-          gte: now,
-          lte: sevenDaysFromNow,
-        },
-        actionStatus: {
-          name: {
-            notIn: ['Concluído', 'Cancelado'],
-          },
-        },
+        riskItem: yearFilter,
+        deadline: { gte: now, lte: sevenDaysFromNow },
+        actionStatus: { name: { notIn: ['Concluído', 'Cancelado'] } },
       },
     });
 
-    // Recent risk items (last 7 days)
+    // Recent risk items (last 7 days, within selected year)
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const recentItems = await prisma.riskItem.count({
       where: {
-        createdAt: {
-          gte: sevenDaysAgo,
-        },
+        dateIdentified: { gte: sevenDaysAgo },
+        ...yearFilter,
       },
     });
 
     // P1 items (critical)
-    const p1Severity = await prisma.severity.findUnique({
-      where: { code: 'P1' },
-    });
+    const p1Severity = await prisma.severity.findUnique({ where: { code: 'P1' } });
     const p1Items = p1Severity
       ? await prisma.committeeDecision.count({
-          where: {
-            finalSeverityId: p1Severity.id,
-          },
+          where: { meetingDate: yr, finalSeverityId: p1Severity.id },
         })
       : 0;
 
@@ -174,23 +165,16 @@ class DashboardService {
   /**
    * Get critical items (P1) for dashboard
    */
-  async getCriticalItems() {
-    const p1Severity = await prisma.severity.findUnique({
-      where: { code: 'P1' },
-    });
-
-    if (!p1Severity) {
-      return [];
-    }
+  async getCriticalItems(year) {
+    const yr = yearRange(year);
+    const p1Severity = await prisma.severity.findUnique({ where: { code: 'P1' } });
+    if (!p1Severity) return [];
 
     const items = await prisma.committeeDecision.findMany({
       where: {
+        meetingDate: yr,
         finalSeverityId: p1Severity.id,
-        committeeStatus: {
-          name: {
-            notIn: ['Concluído', 'Cancelado', 'Sem ação'],
-          },
-        },
+        committeeStatus: { name: { notIn: ['Concluído', 'Cancelado', 'Sem ação'] } },
       },
       include: {
         riskItem: {
@@ -214,21 +198,15 @@ class DashboardService {
   /**
    * Get items with upcoming deadlines
    */
-  async getUpcomingDeadlines() {
+  async getUpcomingDeadlines(year) {
     const now = new Date();
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
     const items = await prisma.actionPlan.findMany({
       where: {
-        deadline: {
-          gte: now,
-          lte: sevenDaysFromNow,
-        },
-        actionStatus: {
-          name: {
-            notIn: ['Concluído', 'Cancelado'],
-          },
-        },
+        riskItem: { dateIdentified: yearRange(year) },
+        deadline: { gte: now, lte: sevenDaysFromNow },
+        actionStatus: { name: { notIn: ['Concluído', 'Cancelado'] } },
       },
       include: {
         riskItem: {
@@ -251,8 +229,9 @@ class DashboardService {
   /**
    * Get recent committee decisions
    */
-  async getRecentDecisions() {
+  async getRecentDecisions(year) {
     const decisions = await prisma.committeeDecision.findMany({
+      where: { meetingDate: yearRange(year) },
       include: {
         riskItem: {
           include: {
@@ -301,14 +280,13 @@ class DashboardService {
 
     return reviews;
   }
-  async getDelayedActions() {
+  async getDelayedActions(year) {
     const now = new Date();
     return prisma.actionPlan.findMany({
       where: {
+        riskItem: { dateIdentified: yearRange(year) },
         deadline: { lt: now },
-        actionStatus: {
-          name: { notIn: ['Concluído', 'Cancelado'] },
-        },
+        actionStatus: { name: { notIn: ['Concluído', 'Cancelado'] } },
       },
       include: {
         riskItem: { select: { id: true, code: true, title: true } },
@@ -320,8 +298,9 @@ class DashboardService {
     });
   }
 
-  async getManagementSummary() {
+  async getManagementSummary(year) {
     const meeting = await prisma.managementMeeting.findFirst({
+      where: { meetingDate: yearRange(year) },
       orderBy: { meetingDate: 'desc' },
       include: {
         riskItems: {
