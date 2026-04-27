@@ -1,0 +1,487 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// CADASTROS AUXILIARES (LOOKUPS)
+// ============================================
+
+model Role {
+  id        Int    @id @default(autoincrement())
+  name      String @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+}
+
+model User {
+  id        Int    @id @default(autoincrement())
+  name      String
+  email     String @unique
+  roleId    Int
+  active    Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  role         Role           @relation(fields: [roleId], references: [id])
+  timelineEvents TimelineEvent[]
+}
+
+model Participant {
+  id        Int    @id @default(autoincrement())
+  name      String @unique
+  role      String
+  active    Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id           Int    @id @default(autoincrement())
+  name         String @unique
+  platform     String? // Desktop / Web
+  segment      String? // ex: Varejo, Nano Varejo, Pequeno Varejo
+  ownerId      Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  owner           ProductOwner   @relation(fields: [ownerId], references: [id])
+  riskItemProducts RiskItemProduct[]
+  poAnalyses      POAnalysis[]
+}
+
+model ProductOwner {
+  id        Int    @id @default(autoincrement())
+  name      String @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+}
+
+model EventSource {
+  id        Int    @id @default(autoincrement())
+  name      String @unique
+  active    Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  riskItems RiskItem[]
+}
+
+model EventType {
+  id        Int    @id @default(autoincrement())
+  name      String @unique
+  active    Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  riskItems RiskItem[]
+}
+
+model Severity {
+  id        Int    @id @default(autoincrement())
+  code      String @unique // P1, P2, P3, P4
+  name      String
+  description String?
+  level     Int // 1=Crítico, 2=Alto, 3=Médio, 4=Informativo
+  active    Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  riskItems          RiskItem[]
+  poAnalyses         POAnalysis[]
+  committeeDecisions CommitteeDecision[]
+}
+
+model CommitteeStatus {
+  id        Int    @id @default(autoincrement())
+  name      String @unique
+  active    Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  committeeDecisions CommitteeDecision[]
+}
+
+model ActionStatus {
+  id        Int    @id @default(autoincrement())
+  name      String @unique
+  active    Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  actionPlans ActionPlan[]
+}
+
+model Area {
+  id        Int    @id @default(autoincrement())
+  name      String @unique
+  active    Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  actionPlans ActionPlan[]
+}
+
+model Setting {
+  id        Int    @id @default(autoincrement())
+  key       String @unique
+  value     String
+  label     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================
+// ENTIDADES PRINCIPAIS
+// ============================================
+
+model RiskItem {
+  id                    Int               @id @default(autoincrement())
+  code                  String            @unique // CR-AAAA-NNN
+  weekReference         String            // ex: 17/2026
+  dateIdentified        DateTime
+  monitoringResponsible  String            // normalmente Gian
+  eventSourceId         Int
+  eventTypeId           Int
+  title                 String
+  summary               String
+  publishedAt           DateTime?
+  officialDeadline      DateTime?
+  preliminarySeverityId Int?
+  requiresPoAnalysis    Boolean           @default(true)
+  monitoringStatus      String            @default("Identificado")
+  initialNotes          String?
+  isFastTrack           Boolean           @default(false)
+  fastTrackReason       String?
+  directorNotifiedAt    DateTime?
+  deletedAt             DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  eventSource        EventSource         @relation(fields: [eventSourceId], references: [id])
+  eventType          EventType           @relation(fields: [eventTypeId], references: [id])
+  preliminarySeverity Severity?           @relation(fields: [preliminarySeverityId], references: [id])
+  products           RiskItemProduct[]
+  poAnalyses         POAnalysis[]
+  committeeDecision  CommitteeDecision?
+  actionPlans        ActionPlan[]
+  directionReviews   DirectionReview[]
+  timelineEvents     TimelineEvent[]
+  actions            Action[]
+  managementMeetings ManagementMeetingRiskItem[]
+  attachments        Attachment[]
+  checklistFindings  ChecklistFinding[]
+
+  @@index([code])
+  @@index([monitoringStatus])
+  @@index([isFastTrack])
+  @@index([deletedAt])
+}
+
+model RiskItemProduct {
+  id         Int      @id @default(autoincrement())
+  riskItemId Int
+  productId  Int
+  createdAt  DateTime @default(now())
+
+  riskItem RiskItem @relation(fields: [riskItemId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([riskItemId, productId])
+  @@index([riskItemId])
+  @@index([productId])
+}
+
+model POAnalysis {
+  id                  Int      @id @default(autoincrement())
+  riskItemId          Int
+  analysisDate        DateTime
+  poResponsible       String
+  productId           Int
+  impactsProduct      String   // Sim / Não / Em avaliação
+  impactType          String   // Funcional / Técnico / Operacional / Comunicação / Misto
+  impactLevel         String   // Real / Provável / Possível
+  needsImplementation String   // Sim / Não / Talvez
+  nonComplianceRisk   Boolean  @default(false)
+  operationalRisk     Boolean  @default(false)
+  customerImpact      Boolean  @default(false)
+  dependencies        String?
+  doubtsAmbiguities   String?
+  needsLegalReview    String   // Sim / Não / Talvez
+  suggestedSeverityId Int?
+  recommendation      String?
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  riskItem          RiskItem  @relation(fields: [riskItemId], references: [id], onDelete: Cascade)
+  product           Product   @relation(fields: [productId], references: [id])
+  suggestedSeverity Severity? @relation(fields: [suggestedSeverityId], references: [id])
+
+  @@index([riskItemId])
+  @@index([productId])
+  @@index([analysisDate])
+}
+
+model CommitteeDecision {
+  id                    Int             @id @default(autoincrement())
+  riskItemId            Int             @unique
+  meetingDate           DateTime
+  finalSeverityId       Int
+  impactedProducts      String
+  involvedPos           String
+  supportImpact         String          // Não / Baixo / Médio / Alto
+  csImpact              String          // Não / Baixo / Médio / Alto
+  marketingImpact       String          // Não / Baixo / Médio / Alto
+  legalTriggered        Boolean         @default(false)
+  decisionText          String
+  hasAction             Boolean         @default(false)
+  hasActionPlan         Boolean         @default(false)
+  goesToDirection       Boolean         @default(false)
+  mainResponsible       String
+  initialDeadline       DateTime?
+  committeeStatusId     Int
+  submittedToDirectionAt DateTime?
+  directionApproved     String          // Sim / Não / Pendente
+  notes                 String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  riskItem          RiskItem        @relation(fields: [riskItemId], references: [id], onDelete: Cascade)
+  finalSeverity     Severity        @relation(fields: [finalSeverityId], references: [id])
+  committeeStatus   CommitteeStatus @relation(fields: [committeeStatusId], references: [id])
+
+  @@index([riskItemId])
+  @@index([meetingDate])
+  @@index([goesToDirection])
+}
+
+model ActionPlan {
+  id                Int      @id @default(autoincrement())
+  code              String   @unique // PA-AAAA-NNN
+  riskItemId        Int
+  theme             String
+  areaId            Int
+  responsibleName   String
+  actionDescription String
+  dependencies      String?
+  openedAt          DateTime
+  deadline          DateTime
+  actionStatusId    Int
+  directionApprovedAt DateTime?
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  riskItem     RiskItem     @relation(fields: [riskItemId], references: [id], onDelete: Cascade)
+  area         Area         @relation(fields: [areaId], references: [id])
+  actionStatus ActionStatus @relation(fields: [actionStatusId], references: [id])
+
+  @@index([code])
+  @@index([riskItemId])
+  @@index([areaId])
+  @@index([actionStatusId])
+  @@index([deadline])
+}
+
+model DirectionReview {
+  id              Int      @id @default(autoincrement())
+  riskItemId      Int
+  submittedAt     DateTime
+  reviewedAt      DateTime?
+  approvalStatus  String   // Aprovado / Pendente / Ajustar e retornar
+  requiresAdjustment Boolean @default(false)
+  directionNotes  String?
+  directorName    String   @default("Marcelo Stivanello")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  riskItem RiskItem @relation(fields: [riskItemId], references: [id], onDelete: Cascade)
+
+  @@index([riskItemId])
+  @@index([approvalStatus])
+}
+
+model TimelineEvent {
+  id          Int      @id @default(autoincrement())
+  riskItemId  Int
+  eventType   String
+  description String
+  eventDate   DateTime @default(now())
+  createdById Int?
+  createdAt   DateTime @default(now())
+
+  riskItem RiskItem @relation(fields: [riskItemId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [createdById], references: [id])
+
+  @@index([riskItemId])
+  @@index([eventDate])
+}
+
+model Action {
+  id          Int      @id @default(autoincrement())
+  riskItemId  Int
+  actionType  String   // PO Devolution, Committee Note, Direction Note, General Note
+  title       String
+  description String
+  responsible String
+  status      String   @default("Pendente") // Pendente, Em andamento, Concluído
+  priority    String   @default("Média") // Baixa, Média, Alta
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  riskItem RiskItem @relation(fields: [riskItemId], references: [id], onDelete: Cascade)
+
+  @@index([riskItemId])
+  @@index([actionType])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model ManagementMeeting {
+  id              Int      @id @default(autoincrement())
+  meetingDate     DateTime
+  agenda          String?  // Pauta a ser levada
+  managementFeedback String?
+  actionRequired  Boolean  @default(false)
+  actionDescription String?
+  nextFollowUp    DateTime?
+  status          String   @default("Pendente") // Pendente, Realizada, Cancelada
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  riskItems ManagementMeetingRiskItem[]
+
+  @@index([meetingDate])
+  @@index([status])
+}
+
+model ManagementMeetingRiskItem {
+  id                  Int      @id @default(autoincrement())
+  managementMeetingId  Int
+  riskItemId          Int
+  createdAt           DateTime @default(now())
+
+  managementMeeting ManagementMeeting @relation(fields: [managementMeetingId], references: [id], onDelete: Cascade)
+  riskItem          RiskItem          @relation(fields: [riskItemId], references: [id], onDelete: Cascade)
+
+  @@unique([managementMeetingId, riskItemId])
+  @@index([managementMeetingId])
+  @@index([riskItemId])
+}
+
+model Attachment {
+  id         Int      @id @default(autoincrement())
+  riskItemId Int
+  fileName   String
+  fileType   String   // 'pdf', 'image/jpeg', 'image/png', etc.
+  fileData   String   // Base64 encoded file data
+  fileSize   Int      // File size in bytes
+  uploadedAt DateTime @default(now())
+
+  riskItem RiskItem @relation(fields: [riskItemId], references: [id], onDelete: Cascade)
+
+  @@index([riskItemId])
+  @@index([fileType])
+}
+
+// ============================================
+// CHECKLIST DE MONITORAMENTO (TERÇA 08:00)
+// ============================================
+
+model ChecklistPortal {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique   // ex: Portal NF-e / NFC-e
+  url         String?            // URL do portal (opcional)
+  category    String?            // ex: Fiscal, Técnico, Regulatório
+  description String?
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  portalEntries PortalCheckEntry[]
+
+  @@index([active])
+  @@index([sortOrder])
+}
+
+model MonitoringChecklist {
+  id             Int      @id @default(autoincrement())
+  weekReference  String            // ex: 17/2026
+  checkDate      DateTime          // data/hora da execução
+  executedBy     String   @default("Gian")
+  status         String   @default("Pendente") // Pendente | Em execução | Concluído
+  generalNotes   String?
+  totalPortals   Int      @default(0)
+  checkedPortals Int      @default(0)
+  foundFindings  Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  portalEntries PortalCheckEntry[]
+  findings      ChecklistFinding[]
+
+  @@unique([weekReference])
+  @@index([weekReference])
+  @@index([status])
+  @@index([checkDate])
+}
+
+model PortalCheckEntry {
+  id            Int      @id @default(autoincrement())
+  checklistId   Int
+  portalId      Int
+  checked       Boolean  @default(false)
+  hasNews       Boolean  @default(false)
+  checkedAt     DateTime?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  checklist MonitoringChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  portal    ChecklistPortal     @relation(fields: [portalId], references: [id])
+  findings  ChecklistFinding[]
+
+  @@unique([checklistId, portalId])
+  @@index([checklistId])
+  @@index([portalId])
+}
+
+model ChecklistFinding {
+  id              Int      @id @default(autoincrement())
+  checklistId     Int
+  portalEntryId   Int
+  title           String            // Título da NT / comunicado encontrado
+  description     String?           // Resumo do que foi encontrado
+  sourceReference String?           // Número da NT, link, código etc.
+  severity        String?           // Estimativa inicial: P1 / P2 / P3 / P4
+  requiresCR      Boolean  @default(false)  // Precisa abrir CR?
+  riskItemId      Int?              // CR gerado a partir deste achado
+  status          String   @default("Identificado") // Identificado | CR Aberto | Descartado
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  checklist   MonitoringChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  portalEntry PortalCheckEntry    @relation(fields: [portalEntryId], references: [id], onDelete: Cascade)
+  riskItem    RiskItem?           @relation(fields: [riskItemId], references: [id])
+
+  @@index([checklistId])
+  @@index([portalEntryId])
+  @@index([riskItemId])
+  @@index([status])
+}
