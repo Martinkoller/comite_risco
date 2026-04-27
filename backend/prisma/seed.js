@@ -480,20 +480,43 @@ async function main() {
   // ============================================
   console.log('Seeding ChecklistPortals...');
   const portalDefs = [
-    { name: 'Portal NF-e / NFC-e',   url: 'https://www.nfe.fazenda.gov.br',             category: 'Fiscal',       sortOrder: 10 },
-    { name: 'Portal CT-e',            url: 'https://www.cte.fazenda.gov.br',             category: 'Fiscal',       sortOrder: 20 },
-    { name: 'Portal MDF-e',           url: 'https://www.mdfe.fazenda.gov.br',            category: 'Fiscal',       sortOrder: 30 },
-    { name: 'Portal BP-e',            url: 'https://www.bpe.fazenda.gov.br',             category: 'Fiscal',       sortOrder: 40 },
-    { name: 'CONFAZ',                 url: 'https://www.confaz.fazenda.gov.br',          category: 'Regulatório',  sortOrder: 50 },
-    { name: 'Receita Federal',        url: 'https://www.gov.br/receitafederal',          category: 'Regulatório',  sortOrder: 60 },
-    { name: 'SEFAZ Nacional',         url: 'https://www.fazenda.gov.br',                category: 'Regulatório',  sortOrder: 70 },
-    { name: 'Portal SAT / MFE',       url: null,                                         category: 'Fiscal',       sortOrder: 80 },
-    { name: 'Nota Técnica (GitHub)',   url: 'https://github.com/nfephp-org/sped-nfe',   category: 'Técnico',      sortOrder: 90 },
-    { name: 'Grupo Oficial NF-e',     url: null,                                         category: 'Comunicado',   sortOrder: 100 },
-    { name: 'Grupo Oficial CT-e',     url: null,                                         category: 'Comunicado',   sortOrder: 110 },
-    { name: 'Comunicado Interno',     url: null,                                         category: 'Comunicado',   sortOrder: 120 },
-    { name: 'ABECS / PAF-ECF',        url: null,                                         category: 'Regulatório',  sortOrder: 130 },
-    { name: 'Outros portais',         url: null,                                         category: 'Outro',        sortOrder: 999 },
+    // ── Portal NF-e ──────────────────────────────────────────────────────────
+    { name: 'NF-e · Manuais',          url: 'https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=ndIjl+iEFdE=',  category: 'NF-e',    sortOrder: 10 },
+    { name: 'NF-e · Esquemas',         url: 'https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=BMPFMBoln3w=',  category: 'NF-e',    sortOrder: 11 },
+    { name: 'NF-e · Notas Técnicas',   url: 'https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=04BIflQt1aY=',  category: 'NF-e',    sortOrder: 12 },
+    { name: 'NF-e · Informes Técnicos',url: 'https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=hXzemuyNHW4=',  category: 'NF-e',    sortOrder: 13 },
+    { name: 'NF-e · Diversos',         url: 'https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=/NJarYc9nus=',  category: 'NF-e',    sortOrder: 14 },
+    { name: 'NF-e · DF-e Avisos',      url: 'https://dfe-portal.svrs.rs.gov.br/Nfe/Avisos',                                        category: 'NF-e',    sortOrder: 15 },
+    { name: 'NF-e · DF-e Notícias',    url: 'https://dfe-portal.svrs.rs.gov.br/Nfe/Noticias',                                      category: 'NF-e',    sortOrder: 16 },
+    { name: 'NF-e · DF-e Documentos',  url: 'https://dfe-portal.svrs.rs.gov.br/Nfe/Documentos',                                    category: 'NF-e',    sortOrder: 17 },
+    // ── Portal CT-e ──────────────────────────────────────────────────────────
+    { name: 'CT-e · Manuais',          url: 'https://www.cte.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=YIi+H8VETH0=',  category: 'CT-e',    sortOrder: 20 },
+    { name: 'CT-e · Esquemas',         url: 'https://www.cte.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=0xlG1bdBass=',  category: 'CT-e',    sortOrder: 21 },
+    { name: 'CT-e · Notas Técnicas',   url: 'https://www.cte.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=Y0nErnoZpsg=',  category: 'CT-e',    sortOrder: 22 },
+    { name: 'CT-e · Diversos',         url: 'https://www.cte.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=IV+EmHlFEfQ=',  category: 'CT-e',    sortOrder: 23 },
+    { name: 'CT-e · DF-e Avisos',      url: 'https://dfe-portal.svrs.rs.gov.br/Cte/Avisos',                                        category: 'CT-e',    sortOrder: 24 },
+    { name: 'CT-e · DF-e Notícias',    url: 'https://dfe-portal.svrs.rs.gov.br/Cte/Noticias',                                      category: 'CT-e',    sortOrder: 25 },
+    { name: 'CT-e · DF-e Documentos',  url: 'https://dfe-portal.svrs.rs.gov.br/Cte/Documentos',                                    category: 'CT-e',    sortOrder: 26 },
+    // ── MDF-e ─────────────────────────────────────────────────────────────────
+    { name: 'MDF-e',                   url: 'https://dfe-portal.svrs.rs.gov.br/Mdfe',                                              category: 'MDF-e',   sortOrder: 30 },
+    // ── Portal CFF ────────────────────────────────────────────────────────────
+    { name: 'CFF · Conformidade Fácil',url: 'https://dfe-portal.svrs.rs.gov.br/Cff/',                                             category: 'CFF',     sortOrder: 40 },
+    // ── Portais estaduais ─────────────────────────────────────────────────────
+    { name: 'PE · NFC-e Avisos',       url: null,                                                                                   category: 'Estadual', sortOrder: 50 },
+    { name: 'MG · NFC-e',             url: null,                                                                                   category: 'Estadual', sortOrder: 51 },
+    { name: 'MG · NF-e',              url: 'http://www.sped.fazenda.mg.gov.br/spedmg/nfe/',                                       category: 'Estadual', sortOrder: 52 },
+    { name: 'MG · CT-e',              url: null,                                                                                   category: 'Estadual', sortOrder: 53 },
+    { name: 'SC · NFC-e',             url: null,                                                                                   category: 'Estadual', sortOrder: 54 },
+    { name: 'SC · Legislação',         url: 'https://legislacao.sef.sc.gov.br/Consulta/Views/Publico/Frame.aspx?x=/html/atos_diat/frame_atos_diat.htm', category: 'Estadual', sortOrder: 55 },
+    { name: 'SP · SAT',               url: null,                                                                                   category: 'Estadual', sortOrder: 56 },
+    { name: 'SP · NF-e',              url: null,                                                                                   category: 'Estadual', sortOrder: 57 },
+    // ── Geral ─────────────────────────────────────────────────────────────────
+    { name: 'SPED',                    url: 'http://sped.rfb.gov.br/',                                                             category: 'Geral',   sortOrder: 60 },
+    { name: 'ACBr',                    url: null,                                                                                   category: 'Geral',   sortOrder: 61 },
+    { name: 'AFRAC',                   url: 'https://www.afrac.com.br/radar.php',                                                  category: 'Geral',   sortOrder: 62 },
+    { name: 'Portal Contábeis',        url: 'https://www.contabeis.com.br/conteudo/tributario/',                                   category: 'Geral',   sortOrder: 63 },
+    { name: 'Portal Nacional NFS-e',   url: 'https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/rtc',                  category: 'Geral',   sortOrder: 64 },
+    { name: 'Comitê Gestor IBS',       url: 'https://www.cgibs.gov.br/inicial',                                                   category: 'Geral',   sortOrder: 65 },
   ];
 
   const checklistPortals = await Promise.all(
