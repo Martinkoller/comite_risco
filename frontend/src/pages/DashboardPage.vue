@@ -2,6 +2,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { dashboardService } from '@/services/dashboardService'
+import { checklistService } from '@/services/checklistService'
+import { useToast } from '@/composables/useToast'
+import ChecklistForm from '@/components/checklist/ChecklistForm.vue'
 import DashboardStatCard from '@/components/dashboard/DashboardStatCard.vue'
 import SeverityCard from '@/components/dashboard/SeverityCard.vue'
 import CriticalItemsTable from '@/components/dashboard/CriticalItemsTable.vue'
@@ -11,6 +14,25 @@ import DelayedActionsList from '@/components/dashboard/DelayedActionsList.vue'
 import ManagementSummaryCard from '@/components/dashboard/ManagementSummaryCard.vue'
 
 const router = useRouter()
+const { show: showToast } = useToast()
+
+const showChecklistForm = ref(false)
+const savingChecklist   = ref(false)
+
+async function createChecklist(form) {
+  savingChecklist.value = true
+  try {
+    const res = await checklistService.create(form)
+    const created = res?.data ?? res
+    showChecklistForm.value = false
+    showToast('Sessão de checklist criada!', 'success')
+    router.push(`/checklist/${created.id}`)
+  } catch (e) {
+    showToast(e?.error || 'Erro ao criar checklist', 'error')
+  } finally {
+    savingChecklist.value = false
+  }
+}
 
 const loading = ref(true)
 const summary = ref(null)
@@ -106,6 +128,9 @@ const fastTrackCount = computed(() => summary.value?.fastTrack ?? 0)
             <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
           </svg>
           Atualizar dados
+        </button>
+        <button class="btn" @click="showChecklistForm = true">
+          ☑️ Novo CheckList
         </button>
         <button class="btn primary" @click="router.push('/risk-items')">
           + Novo Item CR
@@ -234,6 +259,13 @@ const fastTrackCount = computed(() => summary.value?.fastTrack ?? 0)
 
       </template>
     </div>
+
+    <ChecklistForm
+      v-if="showChecklistForm"
+      :saving="savingChecklist"
+      @save="createChecklist"
+      @cancel="showChecklistForm = false"
+    />
   </div>
 </template>
 
